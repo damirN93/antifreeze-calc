@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antifreeze DCF Калькулятор</title>
+<style>
+:root {
+  --bg: #0f1419; --bg-card: #1a2128; --border: #2a3441;
+  --text: #e6edf3; --text-dim: #8b949e; --accent: #2f81f7;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+.header { background: linear-gradient(135deg, #1a2128, #0f1419); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.header h1 { font-size: 22px; margin-bottom: 6px; }
+.header .subtitle { color: var(--text-dim); font-size: 13px; }
+.header .badges { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { padding: 3px 10px; background: rgba(47,129,247,0.12); border: 1px solid rgba(47,129,247,0.3); border-radius: 20px; font-size: 11px; color: var(--accent); }
+
+.debug-bar { background: rgba(47,129,247,0.08); border: 1px solid rgba(47,129,247,0.3); border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; }
+.debug-bar .ok { color: var(--green); }
+.debug-bar .err { color: var(--red); }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+@media(max-width: 800px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+.kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.kpi-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.kpi-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.kpi-value.positive { color: var(--green); } .kpi-value.neutral { color: var(--yellow); } .kpi-value.negative { color: var(--red); }
+
+.main { display: grid; grid-template-columns: 340px 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 1000px) { .main { grid-template-columns: 1fr; } }
+
+.sliders-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.sliders-panel h2 { font-size: 15px; margin-bottom: 14px; }
+.preset-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 14px; }
+.preset-btn { padding: 7px 4px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; }
+.preset-btn:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
+
+.slider-group { margin-bottom: 14px; }
+.slider-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+.slider-label { font-size: 12px; font-weight: 500; line-height: 1.35; flex: 1; min-width: 0; }
+.slider-value { font-size: 12px; color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; background: rgba(47,129,247,0.1); padding: 1px 8px; border-radius: 4px; min-width: 80px; text-align: right; white-space: nowrap; flex-shrink: 0; }
+.slider-input { width: 100%; -webkit-appearance: none; appearance: none; height: 5px; background: var(--bg); border-radius: 3px; outline: none; }
+.slider-input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+.slider-input::-moz-range-thumb { width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; border: none; }
+.slider-hint { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+
+.charts-panel { display: flex; flex-direction: column; gap: 12px; }
+.chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.chart-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; }
+.chart-subtitle { font-size: 10px; color: var(--text-dim); font-weight: normal; }
+.chart-wrapper { position: relative; height: 230px; width: 100%; }
+.svg-chart { width: 100%; height: 100%; }
+.svg-chart svg { width: 100%; height: 100%; display: block; }
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .chart-grid-2 { grid-template-columns: 1fr; } }
+
+.scenarios-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 800px) { .scenarios-grid { grid-template-columns: repeat(2, 1fr); } }
+.scenario-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: transform 0.15s; }
+.scenario-card:hover { transform: translateY(-2px); }
+.scenario-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.scenario-name { font-weight: 600; font-size: 12px; }
+.scenario-light { width: 10px; height: 10px; border-radius: 50%; }
+.scenario-stats { font-size: 11px; color: var(--text-dim); }
+.scenario-stats .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.scenario-stats .value { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.verdict { background: var(--bg-card); border-radius: 12px; padding: 18px; margin-bottom: 16px; border-left: 4px solid var(--yellow); }
+.verdict.positive { border-left-color: var(--green); }
+.verdict.negative { border-left-color: var(--red); }
+.verdict h3 { font-size: 15px; margin-bottom: 6px; }
+.verdict p { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+
+.actions { display: flex; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.btn { flex: 1; padding: 7px; font-size: 11px; background: rgba(47,129,247,0.1); border: 1px solid rgba(47,129,247,0.3); border-radius: 6px; color: var(--accent); cursor: pointer; }
+.btn:hover { background: rgba(47,129,247,0.2); }
+
+.footer { text-align: center; color: var(--text-dim); font-size: 10px; padding: 12px 0; }
+
+.info-btn { cursor: pointer; transition: color 0.15s; user-select: none; }
+.info-btn:hover { color: var(--accent); }
+.info-icon { font-size: 11px; color: var(--text-dim); margin-left: 2px; opacity: 0.6; transition: opacity 0.15s; }
+.info-btn:hover .info-icon { opacity: 1; color: var(--accent); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.show { display: flex; }
+.modal-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; max-width: 800px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 17px; font-weight: 600; }
+.modal-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.modal-close { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(248,81,73,0.2); border-color: var(--red); color: var(--red); }
+.modal-section { margin-bottom: 18px; }
+.modal-section h4 { font-size: 13px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
+.modal-section p { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 6px; }
+.modal-table { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.modal-table th { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+.modal-table th:first-child { text-align: left; }
+.modal-table td { padding: 5px 8px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.modal-table td:first-child { text-align: left; color: var(--text-dim); }
+.modal-table tr.total td { font-weight: 600; color: var(--text); border-top: 1px solid var(--border); border-bottom: none; padding-top: 8px; }
+.modal-table tr.subgroup td { color: var(--accent); font-size: 10px; padding-top: 10px; padding-bottom: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+.modal-formula { font-family: ui-monospace, "SF Mono", Consolas, monospace; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; font-size: 11px; color: var(--text); margin: 6px 0; }
+
+.financing-effect { background: linear-gradient(135deg, rgba(210,153,34,0.06), rgba(47,129,247,0.04)); border: 1px solid rgba(210,153,34,0.2); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+.fe-header { font-size: 12px; font-weight: 600; color: var(--yellow); margin-bottom: 8px; }
+.fe-sub { font-size: 10px; color: var(--text-dim); font-weight: normal; }
+.fe-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 800px) { .fe-grid { grid-template-columns: repeat(2, 1fr); } }
+.fe-item { padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+.fe-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+.fe-value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; color: var(--text); }
+.fe-hint { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>🏭 Antifreeze Glycol Complex — DCF Калькулятор</h1>
+  <div class="subtitle">Greenfield-проект переработки ДЭГ/ТЭГ + производство антифриза, Казахстан</div>
+  <div class="badges">
+    <span class="badge">100% Equity</span>
+    <span class="badge">WACC = Cost of Equity unlevered</span>
+    <span class="badge">2 070 т/год</span>
+  </div>
+</div>
+
+<div class="debug-bar">
+  <span id="dbg-status">⏳ Загрузка...</span>
+  <span>События: <strong id="dbg-events">0</strong> • Последнее: <strong id="dbg-time">—</strong></span>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-label">NPV проекта</div>
+    <div class="kpi-value" id="kpi-npv">—</div>
+    <div class="kpi-sub" id="kpi-npv-sub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">IRR</div>
+    <div class="kpi-value" id="kpi-irr">—</div>
+    <div class="kpi-sub" id="kpi-irr-sub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">EBITDA в 05 году</div>
+    <div class="kpi-value" id="kpi-ebitda">—</div>
+    <div class="kpi-sub" id="kpi-ebitda-sub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Payback (простой)</div>
+    <div class="kpi-value" id="kpi-payback" style="font-size:20px">—</div>
+    <div class="kpi-sub" id="kpi-payback-sub">—</div>
+  </div>
+</div>
+
+<div class="financing-effect">
+  <div class="fe-header">📊 Эффект финансирования <span class="fe-sub">— параметры, на которые влияет кредит (revolver)</span></div>
+  <div class="fe-grid">
+    <div class="fe-item">
+      <div class="fe-label">Чистая прибыль Y5</div>
+      <div class="fe-value" id="fe-ni">—</div>
+      <div class="fe-hint">EBIT − проценты − налог</div>
+    </div>
+    <div class="fe-item">
+      <div class="fe-label">Σ Инвестиции</div>
+      <div class="fe-value" id="fe-cash">—</div>
+      <div class="fe-hint">Equity (CapEx) + Debt (revolver)</div>
+    </div>
+    <div class="fe-item">
+      <div class="fe-label">Σ Проценты за 6 лет</div>
+      <div class="fe-value" id="fe-int">—</div>
+      <div class="fe-hint">Стоимость обслуживания долга</div>
+    </div>
+    <div class="fe-item">
+      <div class="fe-label">Структура капитала</div>
+      <div class="fe-value" id="fe-struct">—</div>
+      <div class="fe-hint">Debt / (Debt + Equity)</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sliders-panel">
+    <h2>🎛️ Параметры модели</h2>
+    <div class="preset-buttons">
+      <button class="preset-btn" data-preset="pessimistic">🔴 Pess</button>
+      <button class="preset-btn" data-preset="base">🟡 Base</button>
+      <button class="preset-btn" data-preset="conservative">🟢 Cons</button>
+      <button class="preset-btn" data-preset="optimistic">🟢 Opt</button>
+      <button class="preset-btn" data-preset="base">↩️ Reset</button>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-capex">💰 CapEx total (Год 0 → Год 1) <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-capex">2.9 млрд</span></div>
+      <input type="range" class="slider-input" id="sl-capex" min="700" max="4000" step="50" value="2900">
+      <div class="slider-hint">Все 11 статей пропорционально</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-wacc">📉 WACC (на весь период) <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-wacc">23.70%</span></div>
+      <input type="range" class="slider-input" id="sl-wacc" min="12" max="35" step="0.25" value="23.7">
+      <div class="slider-hint">Cost of Equity unlevered</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-price-service">⛽ Цена услуги переработки ДЭГ/ТЭГ в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-price-service">253 тыс ₸/т</span></div>
+      <input type="range" class="slider-input" id="sl-price-service" min="175" max="400" step="5" value="253">
+      <div class="slider-hint">Плата за приёмку гликолей</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-price-anti">❄️ Цена антифриза в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-price-anti">580 ₸/л</span></div>
+      <input type="range" class="slider-input" id="sl-price-anti" min="350" max="800" step="10" value="580">
+      <div class="slider-hint">Blended B2B+СТО+retail</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-opex">⚙️ Базовый OpEx в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-opex">252 млн ₸</span></div>
+      <input type="range" class="slider-input" id="sl-opex" min="200" max="320" step="5" value="252">
+      <div class="slider-hint">Обслуж., экология, общезавод, админ ФОТ, охрана, маркетинг, логистика</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-fot">👥 ФОТ производственный в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-fot">109 млн ₸</span></div>
+      <input type="range" class="slider-input" id="sl-fot" min="75" max="145" step="5" value="109">
+      <div class="slider-hint">12 чел.: 1 начальник, 1 технолог, 6 операторов, 2 лаборанта, 1 механик, 1 КИПиА</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-rawmat">🧪 Сырьё и материалы в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-rawmat">195 млн ₸</span></div>
+      <input type="range" class="slider-input" id="sl-rawmat" min="150" max="240" step="5" value="195">
+      <div class="slider-hint">Реагенты, присадки, энергоресурсы, упаковка, утилизация шлама</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-rampup">📈 Загрузка мощности в 01 году <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-rampup">40% (828 т)</span></div>
+      <input type="range" class="slider-input" id="sl-rampup" min="15" max="80" step="5" value="40">
+      <div class="slider-hint">Объём приёмки сырья в первый операционный год</div>
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span class="slider-label info-btn" data-info="sl-debt">🏦 Кредит revolver (выдача в Год 0) <span class="info-icon">ⓘ</span></span><span class="slider-value" id="val-debt">200M ₸</span></div>
+      <input type="range" class="slider-input" id="sl-debt" min="0" max="3000" step="100" value="200">
+      <div class="slider-hint">3 года, 19% годовых</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btn-copy">📋 Копировать</button>
+      <button class="btn" id="btn-tornado">🌪️ Sensitivity</button>
+    </div>
+  </div>
+
+  <div class="charts-panel">
+    <div class="chart-card">
+      <div class="chart-title">📊 FCFF по годам <span class="chart-subtitle">Free Cash Flow to Firm, млн ₸</span></div>
+      <div class="chart-wrapper"><div id="chart-fcff" class="svg-chart"></div></div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">💧 Кумулятивный PV <span class="chart-subtitle">млн ₸</span></div>
+        <div class="chart-wrapper"><div id="chart-cumpv" class="svg-chart"></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🥧 Структура выручки в 05 году <span class="chart-subtitle">3 потока</span></div>
+        <div class="chart-wrapper"><div id="chart-revmix" class="svg-chart"></div></div>
+      </div>
+    </div>
+    <div class="chart-card" id="tornado-card" style="display:none">
+      <div class="chart-title">🌪️ Tornado Sensitivity <span class="chart-subtitle">±10% к параметру → ΔNPV, млн ₸</span></div>
+      <div class="chart-wrapper" style="height:280px"><div id="chart-tornado" class="svg-chart"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="scenarios-grid" id="scenarios-grid"></div>
+
+<div class="verdict" id="verdict">
+  <h3 id="verdict-title">Анализ...</h3>
+  <p id="verdict-text">—</p>
+</div>
+
+<div class="footer">DCF Engine — нативные SVG графики, без CDN | Точность ±10% NPV vs Excel</div>
+
+</div>
+
+<!-- INFO MODAL -->
+<div class="modal-overlay" id="info-modal" onclick="if(event.target.id==='info-modal')closeInfoModal()">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">—</div>
+        <div class="modal-subtitle" id="modal-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeInfoModal()">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ====== STATUS HELPER (раннее обнаружение проблем) ======
+function setStatus(msg, isError) {
+  const el = document.getElementById('dbg-status');
+  if (el) {
+    el.textContent = msg;
+    el.className = isError ? 'err' : 'ok';
+  }
+}
+
+var eventCount = 0;
+function bumpEvent() {
+  eventCount++;
+  const e1 = document.getElementById('dbg-events');
+  const e2 = document.getElementById('dbg-time');
+  if (e1) e1.textContent = eventCount;
+  if (e2) {
+    const now = new Date();
+    e2.textContent = now.getHours().toString().padStart(2,'0') + ':' + 
+                     now.getMinutes().toString().padStart(2,'0') + ':' + 
+                     now.getSeconds().toString().padStart(2,'0');
+  }
+}
+
+// ====== CONFIG ======
+var CONFIG = {
+  capacity: 2070, extractionRate: 0.88, antifreezeShare: 0.50, regenSaleShare: 0.50,
+  antifreezeLitersPerTonRegen: 1402,
+  priceIdx: [0, 1.000, 1.090, 1.070, 1.060, 1.050, 1.050],
+  costIdx:  [0, 1.000, 1.100, 1.080, 1.070, 1.060, 1.060],
+  fotIdx:   [0, 1.000, 1.110, 1.090, 1.080, 1.070, 1.060],
+  prices: {regen_y1: 280, antifreeze_blend_y1: 580},
+  costs: {
+    reagents_y1: 180000, energy_y1: 120000, maintenance_y1: 80000, waste_y1: 90000,
+    ecology_y1: 25000, general_y1: 58000, direct_fot_y1: 109000, admin_fot_y1: 60000,
+    guard_y1: 12000, packaging_per_l: 25, label_per_l: 3, water_per_l: 5,
+    logistics_per_l: 15, marketing_pct: 0.03,
+  },
+  y0PilotFactor: 0.40, y0DAPortion: 0.30,
+  capexCategories: [
+    {base: 750000, life: 12, y0: 0.90, y1: 0.10}, {base: 550000, life: 12, y0: 1.00, y1: 0.00},
+    {base: 350000, life: 25, y0: 1.00, y1: 0.00}, {base: 300000, life: 15, y0: 1.00, y1: 0.00},
+    {base: 200000, life: 15, y0: 1.00, y1: 0.00}, {base: 200000, life: 12, y0: 0.80, y1: 0.20},
+    {base: 120000, life: 7,  y0: 0.70, y1: 0.30}, {base: 80000,  life: 12, y0: 1.00, y1: 0.00},
+    {base: 40000,  life: 7,  y0: 0.50, y1: 0.50}, {base: 100000, life: 5,  y0: 1.00, y1: 0.00},
+    {base: 210000, life: 5,  y0: 0.50, y1: 0.50},
+  ],
+  debt: {rate: 0.19, term: 3, graceYears: 1},
+  taxRate: 0.20, dso: 75, dpo: 45, dio: 60, terminalGrowth: 0.03,
+};
+
+// ====== ENGINE ======
+function cumP(arr, t) { var p = 1; for (var i = 1; i <= t; i++) p *= arr[i]; return p; }
+
+function buildRampup(y1) {
+  var base = [0.15, 0.40, 0.65, 0.85, 0.95, 1.00, 1.00];
+  var d = y1 - 0.40;
+  return base.map(function(r, i) {
+    if (i === 0) return Math.max(0.05, Math.min(0.95, r + d * 0.5));
+    if (i === 1) return y1;
+    if (i === 6) return Math.min(1.0, r);
+    return Math.max(0.10, Math.min(1.0, r + d * (1 - (i - 1) / 5)));
+  });
+}
+
+function runDCF(inp) {
+  var rampup = buildRampup(inp.rampupY1);
+  var intake = rampup.map(function(r) { return CONFIG.capacity * r; });
+  var regen = intake.map(function(v) { return v * CONFIG.extractionRate; });
+  var regenA = regen.map(function(v) { return v * CONFIG.regenSaleShare; });
+  var regenB = regen.map(function(v) { return v * CONFIG.antifreezeShare; });
+  var antiL = regenB.map(function(v) { return v * CONFIG.antifreezeLitersPerTonRegen; });
+
+  var rev = {service: [], regen: [], antifreeze: [], total: []};
+  var cogs = {total: []};
+  var opex = {total: []};
+  var ebitda = [], da = [], ebit = [], fcff = [], nwc = [];
+
+  for (var t = 0; t < 7; t++) {
+    var idxP = cumP(CONFIG.priceIdx, t);
+    var idxC = cumP(CONFIG.costIdx, t);
+    var idxF = cumP(CONFIG.fotIdx, t);
+    var r = rampup[t];
+    var y0F = (t === 0) ? CONFIG.y0PilotFactor : 1.0;
+
+    var s = intake[t] * inp.priceServiceY1 * idxP;
+    var g = regenA[t] * CONFIG.prices.regen_y1 * idxP;
+    var a = antiL[t] * inp.priceAntifreezeY1 * idxP / 1000;
+    rev.service.push(s); rev.regen.push(g); rev.antifreeze.push(a);
+    rev.total.push(s + g + a);
+
+    // COGS
+    var reag = CONFIG.costs.reagents_y1 * idxC * r * inp.rawMatMult;
+    var pack = antiL[t] * (CONFIG.costs.packaging_per_l + CONFIG.costs.label_per_l + CONFIG.costs.water_per_l) * idxC * inp.rawMatMult / 1000;
+    var energyBase = CONFIG.costs.energy_y1 * idxC * inp.rawMatMult;
+    var energy = (t === 0) ? energyBase * r : energyBase * (0.30 + 0.70 * r);
+    var waste = (t === 0) ? 0 : CONFIG.costs.waste_y1 * idxC * r * inp.rawMatMult;
+    var fotDir = CONFIG.costs.direct_fot_y1 * idxF * inp.fotMult;
+    cogs.total.push(reag + pack + energy + waste + fotDir);
+
+    // OpEx
+    var maint = (t === 0) ? 0 : CONFIG.costs.maintenance_y1 * idxC * inp.opexMult;
+    var ecol = CONFIG.costs.ecology_y1 * idxC * y0F * inp.opexMult;
+    var gen = CONFIG.costs.general_y1 * idxC * y0F * inp.opexMult;
+    var admFot = CONFIG.costs.admin_fot_y1 * idxF * inp.opexMult;  // в OpEx group (как Excel)
+    var guard = CONFIG.costs.guard_y1 * idxC * y0F * inp.opexMult;
+    var mkt = a * CONFIG.costs.marketing_pct * y0F;
+    var log = antiL[t] * CONFIG.costs.logistics_per_l * idxC * inp.opexMult / 1000;
+    opex.total.push(maint + ecol + gen + admFot + guard + mkt + log);
+
+    ebitda.push(rev.total[t] - cogs.total[t] - opex.total[t]);
+  }
+
+  // D&A
+  var capexMult = inp.capexTotal / 2900000;
+  var fullDA = 0;
+  CONFIG.capexCategories.forEach(function(c) { fullDA += (c.base * capexMult) / c.life; });
+  da = [fullDA * CONFIG.y0DAPortion, fullDA * 0.905, fullDA, fullDA, fullDA, fullDA, fullDA];
+
+  // CapEx by year
+  var y0Cap = 0, y1Cap = 0;
+  CONFIG.capexCategories.forEach(function(c) {
+    y0Cap += c.base * capexMult * c.y0;
+    y1Cap += c.base * capexMult * c.y1;
+  });
+  var capexY = [y0Cap, y1Cap, 0, 0, 0, 0, 0];
+
+  // NWC
+  for (var t2 = 0; t2 < 7; t2++) {
+    var ar = rev.total[t2] * CONFIG.dso / 365;
+    var inv = cogs.total[t2] * CONFIG.dio / 365;
+    var ap = (cogs.total[t2] + opex.total[t2]) * CONFIG.dpo / 365;
+    var adv = rev.service[t2] * 0.20;
+    nwc.push(ar + inv - ap - adv);
+  }
+  var dNwc = nwc.map(function(n, i) { return (i === 0) ? n : n - nwc[i-1]; });
+
+  // EBIT, FCFF
+  for (var t3 = 0; t3 < 7; t3++) {
+    ebit.push(ebitda[t3] - da[t3]);
+    var nopat = ebit[t3] * (1 - CONFIG.taxRate);
+    fcff.push(nopat + da[t3] - capexY[t3] - dNwc[t3]);
+  }
+
+  // NPV
+  var wacc = inp.wacc, gG = CONFIG.terminalGrowth;
+  var npv = 0;
+  for (var t4 = 0; t4 < 6; t4++) npv += fcff[t4] / Math.pow(1 + wacc, t4);
+  if (wacc > gG + 0.001) npv += fcff[6] / (wacc - gG) / Math.pow(1 + wacc, 5);
+
+  // IRR (bisection)
+  function npvAt(rate) {
+    var v = 0;
+    for (var t = 0; t < 6; t++) v += fcff[t] / Math.pow(1 + rate, t);
+    if (rate > gG + 0.001) v += fcff[6] / (rate - gG) / Math.pow(1 + rate, 5);
+    else v += fcff[6] * 50 / Math.pow(1 + rate, 5);
+    return v;
+  }
+  var irr = null;
+  var lo = -0.5, hi = 2.0;
+  if (npvAt(lo) * npvAt(hi) <= 0) {
+    for (var i = 0; i < 100; i++) {
+      var mid = (lo + hi) / 2;
+      if (Math.abs(npvAt(mid)) < 100) { irr = mid; break; }
+      if (npvAt(lo) * npvAt(mid) < 0) hi = mid; else lo = mid;
+    }
+    if (irr === null) irr = (lo + hi) / 2;
+  }
+
+  // Simple Payback — с дробным годом (linear interpolation внутри года)
+  var cum = 0, simplePB = null, simplePBfrac = null;
+  for (var n = 0; n < 30; n++) {
+    var prev = cum;
+    var f = (n < 6) ? fcff[n] : fcff[6] * Math.pow(1 + gG, n - 6);
+    cum += f;
+    if (prev < 0 && cum >= 0) {
+      simplePB = 2026 + n;
+      // Доля года: prev + frac × f = 0 → frac = -prev/f
+      var frac = f === 0 ? 0 : -prev / f;
+      simplePBfrac = (n - 1) + frac;  // years from Y0
+      break;
+    }
+  }
+  // Disc Payback — также с дробным годом
+  var cumPV = 0, discPB = null, discPBfrac = null;
+  for (var n2 = 0; n2 < 100; n2++) {
+    var prev2 = cumPV;
+    var f2 = (n2 < 6) ? fcff[n2] : fcff[6] * Math.pow(1 + gG, n2 - 6);
+    var pvF = f2 / Math.pow(1 + wacc, n2);
+    cumPV += pvF;
+    if (prev2 < 0 && cumPV >= 0) {
+      discPB = 2026 + n2;
+      var frac2 = pvF === 0 ? 0 : -prev2 / pvF;
+      discPBfrac = (n2 - 1) + frac2;
+      break;
+    }
+  }
+
+  // ===== Financing-зависимая часть (для Net Income, Cash min) =====
+  // Debt schedule
+  var debtInterest = [0,0,0,0,0,0,0], debtPrincipal = [0,0,0,0,0,0,0], debtBalance = [0,0,0,0,0,0,0];
+  var debtDraw = [inp.debtAmount, 0, 0, 0, 0, 0, 0];
+  if (inp.debtAmount > 0) {
+    var repayYears = CONFIG.debt.term - CONFIG.debt.graceYears;
+    var annualP = inp.debtAmount / repayYears;
+    var bal = inp.debtAmount;
+    for (var td = 0; td < 7; td++) {
+      debtBalance[td] = bal;
+      var avgBal = bal;
+      if (td > CONFIG.debt.graceYears && td <= CONFIG.debt.term) {
+        debtPrincipal[td] = annualP;
+        avgBal = bal - annualP / 2;
+      }
+      debtInterest[td] = avgBal * CONFIG.debt.rate;
+      bal = Math.max(0, bal - debtPrincipal[td]);
+    }
+  }
+  
+  // Net Income (с учётом процентов)
+  var netIncome = [];
+  for (var ni = 0; ni < 7; ni++) {
+    var ebt = ebit[ni] - debtInterest[ni];
+    var tax = Math.max(0, ebt * CONFIG.taxRate);
+    netIncome.push(ebt - tax);
+  }
+  
+  // Cash flow (упрощённый): FCFE = FCFF − interest×(1−T) − ΔDebt + равно equity Y0
+  // Cash position = накопленный FCFE + equity contribution (Y0)
+  var equity = inp.capexTotal;  // 100% equity покрывает CapEx
+  var cashEnd = [];
+  var cash = 0;
+  for (var cf = 0; cf < 7; cf++) {
+    var fcfe = fcff[cf] - debtInterest[cf] * (1 - CONFIG.taxRate);
+    if (cf === 0) {
+      cash = equity + debtDraw[cf] + fcfe - debtPrincipal[cf];
+    } else {
+      cash = cash + fcfe - debtPrincipal[cf] + debtDraw[cf];
+    }
+    cashEnd.push(cash);
+  }
+  var cashMin = Math.min.apply(null, cashEnd);
+  var totalInterest = debtInterest.reduce(function(a,b){return a+b;}, 0);
+  
+  return {fcff: fcff, ebitda: ebitda, revenue: rev, npv: npv, irr: irr,
+          simplePB: simplePB, simplePBfrac: simplePBfrac,
+          discPB: discPB, discPBfrac: discPBfrac,
+          netIncome: netIncome, cashEnd: cashEnd, cashMin: cashMin,
+          totalInterest: totalInterest, debtInterest: debtInterest};
+}
+
+// ====== PRESETS ======
+var PRESETS = {
+  base:         {capex: 2900, wacc: 23.7, priceService: 253, priceAnti: 580, opex: 252, fot: 109, rawmat: 195, rampup: 40, debt: 200},
+  pessimistic:  {capex: 3480, wacc: 23.7, priceService: 215, priceAnti: 493, opex: 277, fot: 109, rawmat: 215, rampup: 30, debt: 200},
+  conservative: {capex: 1740, wacc: 23.7, priceService: 253, priceAnti: 580, opex: 252, fot: 109, rawmat: 195, rampup: 40, debt: 200},
+  optimistic:   {capex: 2900, wacc: 23.7, priceService: 291, priceAnti: 667, opex: 227, fot: 109, rawmat: 176, rampup: 50, debt: 200},
+};
+
+// ====== FMT ======
+function fmtMln(n) {
+  if (n === null || isNaN(n)) return '—';
+  return (n >= 0 ? '+' : '') + Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+}
+function fmtPct(n, d) { d = d || 1; if (n === null || isNaN(n)) return '—'; return (n*100).toFixed(d) + '%'; }
+function fmtRu(n) { return Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' '); }
+
+// ====== GET INPUTS ======
+// Базовые суммы для конвертации слайдер→multiplier (Y1, как в Excel)
+var BASE_OPEX_Y1 = 252;     // млн ₸: обслуж+экология+общезавод+admin FOT+охрана+маркетинг+логистика
+var BASE_FOT_Y1 = 109;      // млн ₸: только direct (12 чел. производственный)
+var BASE_RAWMAT_Y1 = 195;   // млн ₸: реагенты+упаковка+энергия+утилизация
+
+function getInputs() {
+  return {
+    capexTotal: parseFloat(document.getElementById('sl-capex').value) * 1000,
+    wacc: parseFloat(document.getElementById('sl-wacc').value) / 100,
+    priceServiceY1: parseFloat(document.getElementById('sl-price-service').value),
+    priceAntifreezeY1: parseFloat(document.getElementById('sl-price-anti').value),
+    opexMult: parseFloat(document.getElementById('sl-opex').value) / BASE_OPEX_Y1,
+    fotMult: parseFloat(document.getElementById('sl-fot').value) / BASE_FOT_Y1,
+    rawMatMult: parseFloat(document.getElementById('sl-rawmat').value) / BASE_RAWMAT_Y1,
+    rampupY1: parseFloat(document.getElementById('sl-rampup').value) / 100,
+    debtAmount: parseFloat(document.getElementById('sl-debt').value) * 1000,
+  };
+}
+
+function updateSliderLabels() {
+  document.getElementById('val-capex').textContent = (parseFloat(document.getElementById('sl-capex').value) / 1000).toFixed(2) + ' млрд';
+  document.getElementById('val-wacc').textContent = parseFloat(document.getElementById('sl-wacc').value).toFixed(2) + '%';
+  document.getElementById('val-price-service').textContent = document.getElementById('sl-price-service').value + ' тыс ₸/т';
+  document.getElementById('val-price-anti').textContent = document.getElementById('sl-price-anti').value + ' ₸/л';
+  document.getElementById('val-opex').textContent = document.getElementById('sl-opex').value + ' млн ₸';
+  document.getElementById('val-fot').textContent = document.getElementById('sl-fot').value + ' млн ₸';
+  document.getElementById('val-rawmat').textContent = document.getElementById('sl-rawmat').value + ' млн ₸';
+  // Ramp-up: процент + тонны
+  var rampPct = parseFloat(document.getElementById('sl-rampup').value);
+  var tons = Math.round(2070 * rampPct / 100);
+  document.getElementById('val-rampup').textContent = rampPct + '% (' + tons + ' т)';
+  document.getElementById('val-debt').textContent = document.getElementById('sl-debt').value + 'M ₸';
+}
+
+// ====== SVG CHARTS ======
+function renderFcff(fcffMln) {
+  var labels = ['Год 0','Год 1','Год 2','Год 3','Год 4','Год 5','Терм.'];
+  var W = 600, H = 230, padL = 55, padR = 20, padT = 25, padB = 30;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var minV = Math.min(0, Math.min.apply(null, fcffMln));
+  var maxV = Math.max(0, Math.max.apply(null, fcffMln));
+  var range = maxV - minV || 1;
+  function yPx(v) { return padT + innerH - ((v - minV) / range) * innerH; }
+  var zeroY = yPx(0);
+  var barW = innerW / labels.length * 0.7;
+  var step = Math.max(500, Math.ceil(range / 5 / 500) * 500);
+  
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  for (var v = Math.floor(minV/step)*step; v <= maxV + step; v += step) {
+    if (v >= minV - step && v <= maxV + step) {
+      var y = yPx(v);
+      svg += '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="rgba(255,255,255,0.05)" stroke-dasharray="2,2"/>';
+      svg += '<text x="'+(padL-6)+'" y="'+(y+3)+'" text-anchor="end" fill="#8b949e" font-size="10">'+fmtRu(v)+'</text>';
+    }
+  }
+  svg += '<line x1="'+padL+'" y1="'+zeroY+'" x2="'+(W-padR)+'" y2="'+zeroY+'" stroke="rgba(255,255,255,0.2)"/>';
+  
+  fcffMln.forEach(function(v, i) {
+    var x = padL + (i + 0.5) * (innerW / labels.length) - barW/2;
+    var y = v >= 0 ? yPx(v) : zeroY;
+    var h = Math.abs(yPx(v) - zeroY);
+    var color = v >= 0 ? '#3fb950' : '#f85149';
+    svg += '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+h+'" fill="'+color+'" rx="3"><title>'+labels[i]+': '+(v>=0?'+':'')+fmtRu(v)+' млн ₸</title></rect>';
+    var lblY = v >= 0 ? y - 4 : y + h + 12;
+    svg += '<text x="'+(x + barW/2)+'" y="'+lblY+'" text-anchor="middle" fill="'+color+'" font-size="10" font-weight="600">'+(v>=0?'+':'')+Math.round(v)+'</text>';
+    svg += '<text x="'+(x + barW/2)+'" y="'+(H - padB + 16)+'" text-anchor="middle" fill="#8b949e" font-size="10">'+labels[i]+'</text>';
+  });
+  svg += '</svg>';
+  document.getElementById('chart-fcff').innerHTML = svg;
+}
+
+function renderCumPv(fcff, wacc, g) {
+  var W = 380, H = 230, padL = 50, padR = 15, padT = 30, padB = 35;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var ptYears = [0,1,2,3,4,5,10,15,30];
+  var ptLabels = ['Год 0','Год 1','Год 2','Год 3','Год 4','Год 5','Год 10','Год 15','∞'];
+  var cumPV = [], cumNom = [], cp = 0, cn = 0;
+  for (var n = 0; n <= 30; n++) {
+    var f = (n < 6) ? fcff[n] : fcff[6] * Math.pow(1+g, n-6);
+    cn += f / 1000;
+    cp += (f / Math.pow(1+wacc, n)) / 1000;
+    if (ptYears.indexOf(n) >= 0) { cumPV.push(cp); cumNom.push(cn); }
+  }
+  var all = cumPV.concat(cumNom);
+  var minV = Math.min(0, Math.min.apply(null, all));
+  var maxV = Math.max(0, Math.max.apply(null, all));
+  var range = maxV - minV || 1;
+  function yPx(v) { return padT + innerH - ((v - minV) / range) * innerH; }
+  function xPx(i) { return padL + (i / (ptYears.length - 1)) * innerW; }
+  var zeroY = yPx(0);
+  var step = Math.max(500, Math.ceil(range / 4 / 500) * 500);
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  for (var v = Math.floor(minV/step)*step; v <= maxV + step; v += step) {
+    if (v >= minV - step/2 && v <= maxV + step/2) {
+      var y = yPx(v);
+      svg += '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="rgba(255,255,255,0.05)" stroke-dasharray="2,2"/>';
+      svg += '<text x="'+(padL-6)+'" y="'+(y+3)+'" text-anchor="end" fill="#8b949e" font-size="10">'+fmtRu(v)+'</text>';
+    }
+  }
+  svg += '<line x1="'+padL+'" y1="'+zeroY+'" x2="'+(W-padR)+'" y2="'+zeroY+'" stroke="rgba(255,255,255,0.15)"/>';
+  
+  // PV area
+  var pvArea = 'M '+xPx(0)+' '+zeroY+' ';
+  cumPV.forEach(function(v, i) { pvArea += 'L '+xPx(i)+' '+yPx(v)+' '; });
+  pvArea += 'L '+xPx(cumPV.length-1)+' '+zeroY+' Z';
+  svg += '<path d="'+pvArea+'" fill="rgba(47,129,247,0.12)"/>';
+  
+  var pvPath = cumPV.map(function(v, i) { return (i===0?'M':'L')+' '+xPx(i)+' '+yPx(v); }).join(' ');
+  svg += '<path d="'+pvPath+'" fill="none" stroke="#2f81f7" stroke-width="2"/>';
+  var nomPath = cumNom.map(function(v, i) { return (i===0?'M':'L')+' '+xPx(i)+' '+yPx(v); }).join(' ');
+  svg += '<path d="'+nomPath+'" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="5,4"/>';
+  
+  cumPV.forEach(function(v, i) {
+    svg += '<circle cx="'+xPx(i)+'" cy="'+yPx(v)+'" r="3" fill="#2f81f7" stroke="#0f1419" stroke-width="2"><title>'+ptLabels[i]+' PV: '+fmtRu(v)+' млн</title></circle>';
+  });
+  cumNom.forEach(function(v, i) {
+    svg += '<circle cx="'+xPx(i)+'" cy="'+yPx(v)+'" r="2.5" fill="#d29922" stroke="#0f1419" stroke-width="2"><title>'+ptLabels[i]+' Nom: '+fmtRu(v)+' млн</title></circle>';
+  });
+  ptLabels.forEach(function(l, i) {
+    svg += '<text x="'+xPx(i)+'" y="'+(H - padB + 14)+'" text-anchor="middle" fill="#8b949e" font-size="9">'+l+'</text>';
+  });
+  svg += '<g transform="translate('+(padL+5)+', 10)">';
+  svg += '<line x1="0" y1="6" x2="14" y2="6" stroke="#2f81f7" stroke-width="2"/>';
+  svg += '<text x="17" y="9" fill="#8b949e" font-size="9">PV дисконт.</text>';
+  svg += '<line x1="95" y1="6" x2="109" y2="6" stroke="#d29922" stroke-width="2" stroke-dasharray="4,3"/>';
+  svg += '<text x="112" y="9" fill="#8b949e" font-size="9">Номинал</text></g>';
+  svg += '</svg>';
+  document.getElementById('chart-cumpv').innerHTML = svg;
+}
+
+function renderRevMix(s, g, a) {
+  var W = 360, H = 230, cx = W/2, cy = 105, rOut = 75, rIn = 48;
+  var data = [
+    {label: 'Услуги', value: s, color: '#2f81f7'},
+    {label: 'Регенерат', value: g, color: '#d29922'},
+    {label: 'Антифриз', value: a, color: '#3fb950'},
+  ];
+  var total = data.reduce(function(sum, d) { return sum + d.value; }, 0) || 1;
+  
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  var startA = -Math.PI / 2;
+  data.forEach(function(d) {
+    var ang = (d.value / total) * 2 * Math.PI;
+    var endA = startA + ang;
+    var x1 = cx + rOut * Math.cos(startA), y1 = cy + rOut * Math.sin(startA);
+    var x2 = cx + rOut * Math.cos(endA),   y2 = cy + rOut * Math.sin(endA);
+    var x3 = cx + rIn * Math.cos(endA),    y3 = cy + rIn * Math.sin(endA);
+    var x4 = cx + rIn * Math.cos(startA),  y4 = cy + rIn * Math.sin(startA);
+    var large = ang > Math.PI ? 1 : 0;
+    svg += '<path d="M '+x1+' '+y1+' A '+rOut+' '+rOut+' 0 '+large+' 1 '+x2+' '+y2+' L '+x3+' '+y3+' A '+rIn+' '+rIn+' 0 '+large+' 0 '+x4+' '+y4+' Z" fill="'+d.color+'" stroke="#1a2128" stroke-width="2"><title>'+d.label+': '+fmtRu(d.value)+' млн ('+(d.value/total*100).toFixed(1)+'%)</title></path>';
+    startA = endA;
+  });
+  svg += '<text x="'+cx+'" y="'+(cy-5)+'" text-anchor="middle" fill="#8b949e" font-size="9">ИТОГО Год 5</text>';
+  svg += '<text x="'+cx+'" y="'+(cy+10)+'" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">'+fmtRu(total)+'</text>';
+  svg += '<text x="'+cx+'" y="'+(cy+22)+'" text-anchor="middle" fill="#8b949e" font-size="9">млн ₸</text>';
+  var lY = 200, lX = 20;
+  data.forEach(function(d) {
+    var pct = (d.value/total*100).toFixed(0) + '%';
+    svg += '<rect x="'+lX+'" y="'+(lY-7)+'" width="9" height="9" fill="'+d.color+'" rx="2"/>';
+    svg += '<text x="'+(lX+13)+'" y="'+(lY+1)+'" fill="#8b949e" font-size="10">'+d.label+' '+pct+'</text>';
+    lX += 115;
+  });
+  svg += '</svg>';
+  document.getElementById('chart-revmix').innerHTML = svg;
+}
+
+function renderTornado(items) {
+  var W = 600, H = items.length * 32 + 40, padL = 130, padR = 40, padT = 20, padB = 25;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var allV = [];
+  items.forEach(function(i) { allV.push(i.up, i.dn); });
+  var maxAbs = Math.max.apply(null, allV.map(Math.abs)) || 1;
+  var xZero = padL + innerW / 2;
+  var scale = (innerW / 2) / maxAbs;
+  var rowH = innerH / items.length;
+  
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  svg += '<line x1="'+xZero+'" y1="'+padT+'" x2="'+xZero+'" y2="'+(H-padB)+'" stroke="rgba(255,255,255,0.2)"/>';
+  items.forEach(function(it, i) {
+    var y = padT + i * rowH + rowH * 0.2;
+    var bh = rowH * 0.6;
+    var upW = Math.abs(it.up) * scale;
+    var upX = it.up >= 0 ? xZero : xZero - upW;
+    svg += '<rect x="'+upX+'" y="'+y+'" width="'+upW+'" height="'+(bh/2 - 1)+'" fill="#3fb950" rx="2"><title>+10% '+it.label+': '+(it.up>=0?'+':'')+Math.round(it.up)+'</title></rect>';
+    var dnW = Math.abs(it.dn) * scale;
+    var dnX = it.dn >= 0 ? xZero : xZero - dnW;
+    svg += '<rect x="'+dnX+'" y="'+(y + bh/2 + 1)+'" width="'+dnW+'" height="'+(bh/2 - 1)+'" fill="#f85149" rx="2"><title>-10% '+it.label+': '+(it.dn>=0?'+':'')+Math.round(it.dn)+'</title></rect>';
+    svg += '<text x="'+(padL - 5)+'" y="'+(y + bh/2 + 4)+'" text-anchor="end" fill="#e6edf3" font-size="11">'+it.label+'</text>';
+    if (Math.abs(it.up) > 5) {
+      svg += '<text x="'+(it.up >= 0 ? upX + upW + 3 : upX - 3)+'" y="'+(y + bh/4 + 3)+'" text-anchor="'+(it.up >= 0 ? 'start' : 'end')+'" fill="#3fb950" font-size="10">'+(it.up>=0?'+':'')+Math.round(it.up)+'</text>';
+    }
+    if (Math.abs(it.dn) > 5) {
+      svg += '<text x="'+(it.dn >= 0 ? dnX + dnW + 3 : dnX - 3)+'" y="'+(y + 3*bh/4 + 3)+'" text-anchor="'+(it.dn >= 0 ? 'start' : 'end')+'" fill="#f85149" font-size="10">'+(it.dn>=0?'+':'')+Math.round(it.dn)+'</text>';
+    }
+  });
+  svg += '<g transform="translate('+padL+', 4)">';
+  svg += '<rect x="0" y="0" width="9" height="9" fill="#3fb950" rx="2"/><text x="13" y="8" fill="#8b949e" font-size="10">+10% к параметру</text>';
+  svg += '<rect x="130" y="0" width="9" height="9" fill="#f85149" rx="2"/><text x="143" y="8" fill="#8b949e" font-size="10">-10% к параметру</text></g>';
+  svg += '</svg>';
+  document.getElementById('chart-tornado').innerHTML = svg;
+}
+
+// ====== FINANCING EFFECT ======
+function updateFinancingEffect(r, inp) {
+  var niY5 = r.netIncome[5] / 1000;
+  var totalInt = r.totalInterest / 1000;
+  var debt = inp.debtAmount;
+  var equity = inp.capexTotal;
+  var debtPct = (debt / (debt + equity)) * 100;
+  
+  var niEl = document.getElementById('fe-ni');
+  niEl.textContent = fmtMln(niY5) + ' млн';
+  niEl.style.color = niY5 > 0 ? 'var(--green)' : 'var(--red)';
+  
+  var totalInvested = (inp.capexTotal + inp.debtAmount) / 1000;
+  var cashEl = document.getElementById('fe-cash');
+  cashEl.textContent = fmtMln(totalInvested) + ' млн';
+  cashEl.style.color = 'var(--accent)';
+  
+  var intEl = document.getElementById('fe-int');
+  intEl.textContent = fmtMln(totalInt) + ' млн';
+  intEl.style.color = totalInt > 100 ? 'var(--red)' : totalInt > 50 ? 'var(--yellow)' : 'var(--green)';
+  
+  document.getElementById('fe-struct').textContent = debtPct.toFixed(1) + '%';
+}
+
+// ====== UPDATE KPI ======
+function updateKPI(r, inp) {
+  var npvMln = r.npv / 1000;
+  var ebitda5 = r.ebitda[5] / 1000;
+  var rev5 = r.revenue.total[5] / 1000;
+  var margin = (r.ebitda[5] / r.revenue.total[5]) * 100;
+  
+  var npvEl = document.getElementById('kpi-npv');
+  npvEl.textContent = fmtMln(npvMln) + ' млн';
+  npvEl.className = 'kpi-value ' + (npvMln > 100 ? 'positive' : npvMln < -100 ? 'negative' : 'neutral');
+  document.getElementById('kpi-npv-sub').textContent = 'EV при WACC ' + fmtPct(inp.wacc, 2);
+
+  var irrEl = document.getElementById('kpi-irr');
+  var irrPct = r.irr === null ? null : r.irr * 100;
+  irrEl.textContent = r.irr === null ? '—' : fmtPct(r.irr, 1);
+  irrEl.className = 'kpi-value ' + (irrPct === null ? 'negative' : irrPct > inp.wacc*100 ? 'positive' : 'negative');
+  document.getElementById('kpi-irr-sub').textContent = irrPct === null ? 'Не определяется' : 'vs WACC ' + fmtPct(inp.wacc, 1) + ' (Δ ' + (irrPct - inp.wacc*100).toFixed(1) + ' п.п.)';
+
+  var ebEl = document.getElementById('kpi-ebitda');
+  ebEl.textContent = fmtMln(ebitda5) + ' млн';
+  ebEl.className = 'kpi-value ' + (margin > 35 ? 'positive' : margin > 20 ? 'neutral' : 'negative');
+  document.getElementById('kpi-ebitda-sub').textContent = 'margin ' + margin.toFixed(1) + '% • Revenue ' + Math.round(rev5);
+
+  var pbEl = document.getElementById('kpi-payback');
+  if (r.simplePBfrac !== null) {
+    var yrs = r.simplePBfrac;
+    var calendarYr = Math.floor(2026 + yrs);
+    pbEl.textContent = yrs.toFixed(1) + ' лет (' + calendarYr + ')';
+  } else {
+    pbEl.textContent = '> 15 лет';
+  }
+  pbEl.className = 'kpi-value ' + (r.simplePBfrac !== null && r.simplePBfrac <= 5 ? 'positive' : r.simplePBfrac !== null && r.simplePBfrac <= 8 ? 'neutral' : 'negative');
+  document.getElementById('kpi-payback-sub').textContent = 'Дисконт.: ' + (r.discPBfrac !== null ? r.discPBfrac.toFixed(1) + ' лет (' + Math.floor(2026 + r.discPBfrac) + ')' : 'Не достиг.');
+}
+
+function updateVerdict(r, inp) {
+  var v = document.getElementById('verdict');
+  var t = document.getElementById('verdict-title');
+  var p = document.getElementById('verdict-text');
+  var npvMln = r.npv / 1000;
+  var waccPct = inp.wacc * 100;
+  var irr = r.irr ? r.irr * 100 : null;
+  
+  if (npvMln > 200) {
+    v.className = 'verdict positive';
+    t.textContent = '🟢 Проект создаёт стоимость';
+    p.textContent = 'NPV +' + Math.round(npvMln) + ' млн ₸ при WACC ' + waccPct.toFixed(2) + '%. IRR ' + (irr ? irr.toFixed(1) + '%' : '—') + ' превышает стоимость капитала. Проект инвестиционно привлекателен. Простой payback ' + (r.simplePBfrac !== null ? r.simplePBfrac.toFixed(1) + ' лет' : '> 15 лет') + '.';
+  } else if (npvMln > -200) {
+    v.className = 'verdict';
+    t.textContent = '🟡 На границе создания стоимости';
+    p.textContent = 'NPV ' + Math.round(npvMln) + ' млн ₸ при WACC ' + waccPct.toFixed(2) + '%. Проект на грани окупаемости. Решение зависит от стратегических факторов.';
+  } else {
+    v.className = 'verdict negative';
+    t.textContent = '🔴 Проект разрушает стоимость';
+    p.textContent = 'NPV ' + Math.round(npvMln) + ' млн ₸ при WACC ' + waccPct.toFixed(2) + '%. IRR ниже стоимости капитала. Требуется пересмотр параметров.';
+  }
+}
+
+function updateScenarios() {
+  var grid = document.getElementById('scenarios-grid');
+  grid.innerHTML = '';
+  var scen = [
+    {name: '🔴 Pessimistic', preset: 'pessimistic', color: '#f85149'},
+    {name: '🟡 Base', preset: 'base', color: '#d29922'},
+    {name: '🟢 Conservative', preset: 'conservative', color: '#3fb950'},
+    {name: '🟢 Optimistic', preset: 'optimistic', color: '#3fb950'},
+  ];
+  scen.forEach(function(s) {
+    var p = PRESETS[s.preset];
+    var inp = {capexTotal: p.capex*1000, wacc: p.wacc/100, priceServiceY1: p.priceService, priceAntifreezeY1: p.priceAnti, opexMult: p.opex/BASE_OPEX_Y1, fotMult: p.fot/BASE_FOT_Y1, rawMatMult: p.rawmat/BASE_RAWMAT_Y1, rampupY1: p.rampup/100, debtAmount: p.debt*1000};
+    var r = runDCF(inp);
+    var npvColor = r.npv/1000 > 0 ? '#3fb950' : '#f85149';
+    var card = document.createElement('div');
+    card.className = 'scenario-card';
+    card.setAttribute('data-preset', s.preset);
+    card.innerHTML = 
+      '<div class="scenario-header"><span class="scenario-name">' + s.name + '</span><span class="scenario-light" style="background:' + s.color + '"></span></div>' +
+      '<div class="scenario-stats">' +
+      '<div class="row"><span>NPV</span><span class="value" style="color:' + npvColor + '">' + fmtMln(r.npv/1000) + ' млн</span></div>' +
+      '<div class="row"><span>IRR</span><span class="value">' + (r.irr === null ? '—' : fmtPct(r.irr, 1)) + '</span></div>' +
+      '<div class="row"><span>EBITDA Y5</span><span class="value">' + fmtMln(r.ebitda[5]/1000) + ' млн</span></div>' +
+      '<div class="row"><span>Payback</span><span class="value">' + (r.simplePBfrac !== null ? r.simplePBfrac.toFixed(1) + ' лет' : '> 15 лет') + '</span></div>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+// ====== TORNADO ======
+var tornadoVisible = false;
+function toggleTornado() {
+  tornadoVisible = !tornadoVisible;
+  document.getElementById('tornado-card').style.display = tornadoVisible ? 'block' : 'none';
+  if (tornadoVisible) updateTornado();
+}
+function updateTornado() {
+  if (!tornadoVisible) return;
+  var baseInp = getInputs();
+  var baseNPV = runDCF(baseInp).npv / 1000;
+  var params = [
+    {label: 'Цена услуги', key: 'priceServiceY1'},
+    {label: 'Цена антифриза', key: 'priceAntifreezeY1'},
+    {label: 'CapEx', key: 'capexTotal'},
+    {label: 'Сырьё и материалы', key: 'rawMatMult'},
+    {label: 'OpEx (постоянные)', key: 'opexMult'},
+    {label: 'Загрузка 01 года', key: 'rampupY1'},
+    {label: 'WACC', key: 'wacc'},
+    {label: 'ФОТ производственный', key: 'fotMult'},
+  ];
+  var res = params.map(function(p) {
+    var iU = Object.assign({}, baseInp); iU[p.key] = baseInp[p.key] * 1.10;
+    var iD = Object.assign({}, baseInp); iD[p.key] = baseInp[p.key] * 0.90;
+    return {label: p.label, up: runDCF(iU).npv/1000 - baseNPV, dn: runDCF(iD).npv/1000 - baseNPV};
+  });
+  res.forEach(function(r) { r.mag = Math.abs(r.up) + Math.abs(r.dn); });
+  res.sort(function(a, b) { return b.mag - a.mag; });
+  renderTornado(res);
+}
+
+// ====== COPY ======
+function copyConfig() {
+  var inp = getInputs();
+  var r = runDCF(inp);
+  var txt = '=== Antifreeze Glycol Complex — Параметры ===\n' +
+    'CapEx: ' + (inp.capexTotal/1000000).toFixed(2) + ' млрд ₸\n' +
+    'WACC: ' + (inp.wacc*100).toFixed(2) + '%\n' +
+    'Цена услуги Y1: ' + inp.priceServiceY1 + ' тыс ₸/т\n' +
+    'Цена антифриза Y1: ' + inp.priceAntifreezeY1 + ' ₸/л\n' +
+    'OpEx multiplier: ' + inp.opexMult.toFixed(2) + 'x\n' +
+    'ФОТ multiplier: ' + inp.fotMult.toFixed(2) + 'x\n' +
+    'Ramp-up Y1: ' + (inp.rampupY1*100).toFixed(0) + '%\n' +
+    'Кредит: ' + (inp.debtAmount/1000) + 'M ₸\n\n' +
+    '=== Результаты ===\n' +
+    'NPV: ' + Math.round(r.npv/1000) + ' млн ₸\n' +
+    'IRR: ' + (r.irr ? (r.irr*100).toFixed(1) + '%' : '—') + '\n' +
+    'EBITDA Y5: ' + Math.round(r.ebitda[5]/1000) + ' млн ₸\n' +
+    'Payback простой: ' + (r.simplePBfrac !== null ? r.simplePBfrac.toFixed(1) + ' лет (' + Math.floor(2026 + r.simplePBfrac) + ')' : '> 15 лет') + '\n' +
+    'Payback дисконт.: ' + (r.discPBfrac !== null ? r.discPBfrac.toFixed(1) + ' лет (' + Math.floor(2026 + r.discPBfrac) + ')' : 'не достиг.');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(function() {
+      document.getElementById('btn-copy').textContent = '✅ Скопировано!';
+      setTimeout(function() { document.getElementById('btn-copy').textContent = '📋 Копировать'; }, 2000);
+    });
+  } else {
+    alert(txt);
+  }
+}
+
+// ====== MAIN UPDATE ======
+function update() {
+  try {
+    bumpEvent();
+    updateSliderLabels();
+    var inp = getInputs();
+    var r = runDCF(inp);
+    updateKPI(r, inp);
+    renderFcff(r.fcff.map(function(v) { return Math.round(v/1000); }));
+    renderCumPv(r.fcff, inp.wacc, CONFIG.terminalGrowth);
+    renderRevMix(r.revenue.service[5]/1000, r.revenue.regen[5]/1000, r.revenue.antifreeze[5]/1000);
+    updateFinancingEffect(r, inp);
+    updateVerdict(r, inp);
+    if (tornadoVisible) updateTornado();
+    setStatus('✓ Работает', false);
+  } catch(e) {
+    setStatus('✗ Ошибка: ' + e.message, true);
+    console.error('update error:', e);
+  }
+}
+
+function loadPreset(name) {
+  var p = PRESETS[name]; if (!p) return;
+  document.getElementById('sl-capex').value = p.capex;
+  document.getElementById('sl-wacc').value = p.wacc;
+  document.getElementById('sl-price-service').value = p.priceService;
+  document.getElementById('sl-price-anti').value = p.priceAnti;
+  document.getElementById('sl-opex').value = p.opex;
+  document.getElementById('sl-fot').value = p.fot;
+  document.getElementById('sl-rawmat').value = p.rawmat;
+  document.getElementById('sl-rampup').value = p.rampup;
+  document.getElementById('sl-debt').value = p.debt;
+  update();
+}
+
+// ====== INFO MODAL ======
+
+function rusNum(n, sign) {
+  if (n === null || isNaN(n)) return '—';
+  var s = Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+  return sign && n >= 0 ? '+' + s : s;
+}
+
+function buildModal(sliderId, inp) {
+  // Текущие значения параметров
+  var rampup = (function(y1) {
+    var base = [0.15, 0.40, 0.65, 0.85, 0.95, 1.00, 1.00];
+    var d = y1 - 0.40;
+    return base.map(function(r, i) {
+      if (i === 0) return Math.max(0.05, Math.min(0.95, r + d * 0.5));
+      if (i === 1) return y1;
+      if (i === 6) return Math.min(1.0, r);
+      return Math.max(0.10, Math.min(1.0, r + d * (1 - (i - 1) / 5)));
+    });
+  })(inp.rampupY1);
+  
+  var pi = CONFIG.priceIdx;
+  var ci = CONFIG.costIdx;
+  var fi = CONFIG.fotIdx;
+  function cumP(arr, t) { var p = 1; for (var i = 1; i <= t; i++) p *= arr[i]; return p; }
+  
+  var info = {};
+  
+  // ====== CapEx ======
+  if (sliderId === 'sl-capex') {
+    var m = inp.capexTotal / 2900000;
+    info.title = '💰 CapEx total — Капитальные затраты';
+    info.subtitle = 'Текущее значение: ' + (inp.capexTotal/1000000).toFixed(2) + ' млрд ₸ (базовое 2.90 млрд × ' + m.toFixed(2) + 'x)';
+    info.body = '<div class="modal-section"><h4>Состав по 11 категориям</h4>';
+    var cats = [
+      ['Технологическая линия регенерации', 750, 12, 0.90, 0.10],
+      ['Монтаж и технологическая обвязка', 550, 12, 1.00, 0.00],
+      ['Строительно-монтажные работы', 350, 25, 1.00, 0.00],
+      ['Энергетическая инфраструктура', 300, 15, 1.00, 0.00],
+      ['Резервуарный парк', 200, 15, 1.00, 0.00],
+      ['Линия производства антифриза', 200, 12, 0.80, 0.20],
+      ['Автоматизация и СУ', 120, 7, 0.70, 0.30],
+      ['Экологические системы', 80, 12, 1.00, 0.00],
+      ['Лаборатория контроля качества', 40, 7, 0.50, 0.50],
+      ['Проектирование и ПНР', 100, 5, 1.00, 0.00],
+      ['Прочие и непредвиденные', 210, 5, 0.50, 0.50],
+    ];
+    info.body += '<table class="modal-table"><thead><tr><th>Категория</th><th>База, млн</th><th>Скорр., млн</th><th>СПИ, лет</th><th>Год 0</th><th>Год 1</th></tr></thead><tbody>';
+    var totBase = 0, totScaled = 0, totY0 = 0, totY1 = 0, totDA = 0;
+    cats.forEach(function(c) {
+      var scaled = c[1] * m;
+      var y0v = scaled * c[3];
+      var y1v = scaled * c[4];
+      totBase += c[1]; totScaled += scaled; totY0 += y0v; totY1 += y1v;
+      totDA += scaled / c[2];
+      info.body += '<tr><td>' + c[0] + '</td><td>' + c[1] + '</td><td>' + Math.round(scaled) + '</td><td>' + c[2] + '</td><td>' + Math.round(y0v) + '</td><td>' + Math.round(y1v) + '</td></tr>';
+    });
+    info.body += '<tr class="total"><td>ИТОГО</td><td>' + totBase + '</td><td>' + Math.round(totScaled) + '</td><td>—</td><td>' + Math.round(totY0) + '</td><td>' + Math.round(totY1) + '</td></tr>';
+    info.body += '</tbody></table></div>';
+    info.body += '<div class="modal-section"><h4>Амортизация (D&A) по годам</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    info.body += '<tr><td>D&A, млн ₸</td><td>' + Math.round(totDA*0.30) + '</td><td>' + Math.round(totDA*0.905) + '</td><td>' + Math.round(totDA) + '</td><td>' + Math.round(totDA) + '</td><td>' + Math.round(totDA) + '</td><td>' + Math.round(totDA) + '</td></tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p>Год 0 — 30% от полной (не все категории успели амортизироваться). Год 1 — 90.5% (часть активов в Год 1 ещё дозакупается).</p></div>';
+  }
+  
+  // ====== WACC ======
+  else if (sliderId === 'sl-wacc') {
+    info.title = '📉 WACC — Стоимость капитала';
+    var waccCur = inp.wacc * 100;
+    var waccDef = 23.70;
+    var delta = waccCur - waccDef;
+    info.subtitle = 'Текущее значение: ' + waccCur.toFixed(2) + '%' + (Math.abs(delta) > 0.1 ? ' (отклонение от base: ' + (delta>=0?'+':'') + delta.toFixed(2) + ' п.п.)' : '');
+    info.body = '<div class="modal-section"><h4>Базовая декомпозиция WACC = 23.70% (при 100% Equity)</h4>';
+    info.body += '<div class="modal-formula">WACC = Cost of Equity unlevered = Rf + β × ERP + CRP</div>';
+    info.body += '<table class="modal-table"><tbody>';
+    info.body += '<tr><td>Risk-free rate (МЕУКАМ 10Y)</td><td>15.10%</td></tr>';
+    info.body += '<tr><td>Beta unlevered (химсектор)</td><td>0.85</td></tr>';
+    info.body += '<tr><td>Equity Risk Premium</td><td>6.00%</td></tr>';
+    info.body += '<tr><td>Country Risk Premium (Казахстан)</td><td>3.50%</td></tr>';
+    info.body += '<tr><td>Terminal growth (Gordon)</td><td>3.00%</td></tr>';
+    info.body += '<tr class="total"><td>WACC = 15.10% + 0.85 × 6% + 3.5%</td><td>23.70%</td></tr>';
+    info.body += '</tbody></table>';
+    if (Math.abs(delta) > 0.1) {
+      info.body += '<p style="margin-top:8px;padding:8px 10px;background:rgba(210,153,34,0.1);border-left:3px solid var(--yellow);border-radius:4px;font-size:11px;">⚠ Вы изменили WACC на <b>' + (delta>=0?'+':'') + delta.toFixed(2) + ' п.п.</b> относительно базы. Это эквивалентно изменению одного из компонентов: например, изменению Rf, β, ERP или CRP. Используется для sensitivity-анализа.</p>';
+    }
+    info.body += '</div>';
+    info.body += '<div class="modal-section"><h4>Дисконт-факторы по годам (при текущем WACC)</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    var df = [0,1,2,3,4,5].map(function(t){ return (1/Math.pow(1+inp.wacc, t)).toFixed(3); });
+    info.body += '<tr><td>Discount factor</td><td>' + df.join('</td><td>') + '</td></tr>';
+    info.body += '</tbody></table></div>';
+  }
+  
+  // ====== PRICE SERVICE ======
+  else if (sliderId === 'sl-price-service') {
+    info.title = '⛽ Цена услуги переработки ДЭГ/ТЭГ';
+    info.subtitle = 'Текущее значение в 01 году: ' + inp.priceServiceY1 + ' тыс ₸/тонну';
+    info.body = '<div class="modal-section"><h4>Описание</h4>';
+    info.body += '<p>Плата от заказчиков (нефтегазовые компании РК) за приёмку и переработку их отработанных гликолей. Один из 3 источников выручки — самый стабильный, поскольку не зависит от рыночных цен на товарную продукцию.</p></div>';
+    info.body += '<div class="modal-section"><h4>Цена по годам (с индексацией)</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th><th>Терм.</th></tr></thead><tbody>';
+    info.body += '<tr><td>Индекс к Год 1</td>';
+    for (var t = 0; t <= 6; t++) {
+      info.body += '<td>×' + cumP(pi, t).toFixed(2) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '<tr><td>Цена, тыс ₸/т</td>';
+    for (var t = 0; t <= 6; t++) {
+      info.body += '<td>' + (inp.priceServiceY1 * cumP(pi, t)).toFixed(0) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '<tr><td>Объём приёмки, т</td>';
+    for (var t = 0; t <= 6; t++) {
+      info.body += '<td>' + Math.round(2070 * rampup[t]) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '<tr class="total"><td>Выручка, млн ₸</td>';
+    for (var t = 0; t <= 6; t++) {
+      var v = 2070 * rampup[t] * inp.priceServiceY1 * cumP(pi, t) / 1000;
+      info.body += '<td>' + Math.round(v) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p>Индексация: ×1.09 → ×1.07 → ×1.06 → ×1.05 → ×1.05 (по годам относительно предыдущего).</p></div>';
+  }
+  
+  // ====== PRICE ANTIFREEZE ======
+  else if (sliderId === 'sl-price-anti') {
+    info.title = '❄️ Цена антифриза (blended)';
+    info.subtitle = 'Текущее значение в 01 году: ' + inp.priceAntifreezeY1 + ' ₸/литр';
+    // Базовые цены при blended = 580: B2B 400, СТО 700, Retail 1300
+    // Шкалируем пропорционально под текущий blended
+    var BASE_BLEND = 580;
+    var scale = inp.priceAntifreezeY1 / BASE_BLEND;
+    var pB2B = Math.round(400 * scale);
+    var pSTO = Math.round(700 * scale);
+    var pRet = Math.round(1300 * scale);
+    var checkBlend = pB2B * 0.6 + pSTO * 0.3 + pRet * 0.1;
+    info.body = '<div class="modal-section"><h4>Структура каналов продаж</h4>';
+    info.body += '<table class="modal-table"><tbody>';
+    info.body += '<tr><td>B2B-дистрибьюторы</td><td>60%</td><td>~' + pB2B + ' ₸/л</td></tr>';
+    info.body += '<tr><td>СТО (станции тех. обсл.)</td><td>30%</td><td>~' + pSTO + ' ₸/л</td></tr>';
+    info.body += '<tr><td>Розница</td><td>10%</td><td>~' + pRet + ' ₸/л</td></tr>';
+    info.body += '<tr class="total"><td>Blended (взвешенная)</td><td>100%</td><td>' + inp.priceAntifreezeY1 + ' ₸/л</td></tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p style="font-size:11px;color:var(--text-dim);margin-top:6px;">Цены каналов масштабируются пропорционально blended цене (×' + scale.toFixed(2) + ' к базовой структуре при 580 ₸/л).</p>';
+    info.body += '</div>';
+    info.body += '<div class="modal-section"><h4>Цена и объёмы по годам</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th><th>Терм.</th></tr></thead><tbody>';
+    info.body += '<tr><td>Цена, ₸/л</td>';
+    for (var t = 0; t <= 6; t++) {
+      info.body += '<td>' + Math.round(inp.priceAntifreezeY1 * cumP(pi, t)) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '<tr><td>Объём, тыс л</td>';
+    for (var t = 0; t <= 6; t++) {
+      var liters = 2070 * rampup[t] * 0.88 * 0.5 * 1402 / 1000;
+      info.body += '<td>' + Math.round(liters) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '<tr class="total"><td>Выручка, млн ₸</td>';
+    for (var t = 0; t <= 6; t++) {
+      var liters = 2070 * rampup[t] * 0.88 * 0.5 * 1402;
+      var v = liters * inp.priceAntifreezeY1 * cumP(pi, t) / 1000 / 1000;
+      info.body += '<td>' + Math.round(v) + '</td>';
+    }
+    info.body += '</tr>';
+    info.body += '</tbody></table></div>';
+  }
+  
+  // ====== OPEX ======
+  else if (sliderId === 'sl-opex') {
+    var m = inp.opexMult;
+    // Y1 calculated: ramp=Y1 загрузка, antifreezeY1 = blended slider
+    var liters_y1 = 2070 * inp.rampupY1 * 0.88 * 0.5 * 1402;  // литры антифриза Y1
+    var revAnti_y1 = liters_y1 * inp.priceAntifreezeY1 / 1000;  // тыс ₸
+    var mkt_y1 = revAnti_y1 / 1000 * 0.03 * m;  // млн ₸
+    var log_y1 = liters_y1 * 15 / 1000 / 1000 * m;  // млн ₸
+    var maint_y1 = 80 * m, ecol_y1 = 25 * m, gen_y1 = 58 * m, adm_y1 = 60 * m, grd_y1 = 12 * m;
+    var totalY1 = maint_y1 + ecol_y1 + gen_y1 + adm_y1 + grd_y1 + mkt_y1 + log_y1;
+    info.title = '⚙️ Базовый OpEx — Постоянные операционные';
+    info.subtitle = 'Год 1 при текущих параметрах: ' + Math.round(totalY1) + ' млн ₸ (множитель ' + m.toFixed(2) + 'x, загрузка ' + (inp.rampupY1*100).toFixed(0) + '%)';
+    info.body = '<div class="modal-section"><h4>Состав в Год 1 (млн ₸, при текущих слайдерах)</h4>';
+    info.body += '<table class="modal-table"><tbody>';
+    info.body += '<tr><td>Обслуживание и ремонт</td><td>' + Math.round(maint_y1) + '</td></tr>';
+    info.body += '<tr><td>Экологические расходы</td><td>' + Math.round(ecol_y1) + '</td></tr>';
+    info.body += '<tr><td>Общезаводские</td><td>' + Math.round(gen_y1) + '</td></tr>';
+    info.body += '<tr><td>Админ ФОТ (5 чел.)</td><td>' + Math.round(adm_y1) + '</td></tr>';
+    info.body += '<tr><td>Охрана (2 чел.)</td><td>' + Math.round(grd_y1) + '</td></tr>';
+    info.body += '<tr><td>Маркетинг (3% × выручка антифриза)</td><td>' + Math.round(mkt_y1) + '</td></tr>';
+    info.body += '<tr><td>Логистика (15 ₸/л × ' + Math.round(liters_y1/1000) + ' тыс л)</td><td>' + Math.round(log_y1) + '</td></tr>';
+    info.body += '<tr class="total"><td>ИТОГО OpEx Год 1</td><td>' + Math.round(totalY1) + '</td></tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p style="font-size:11px;color:var(--text-dim);margin-top:6px;">Маркетинг и логистика — переменные, зависят от объёма антифриза (ramp-up) и его цены. Остальные — постоянные.</p>';
+    info.body += '</div>';
+    info.body += '<div class="modal-section"><h4>OpEx по годам (с cost-индексацией + ramp для переменных)</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    info.body += '<tr><td>Индекс затрат</td>';
+    for (var t = 0; t <= 5; t++) info.body += '<td>×' + cumP(ci, t).toFixed(2) + '</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>OpEx, млн ₸</td>';
+    for (var t = 0; t <= 5; t++) {
+      var y0F = (t === 0) ? 0.40 : 1.0;
+      var maint = (t === 0) ? 0 : 80 * cumP(ci, t) * m;
+      var ecol = 25 * cumP(ci, t) * y0F * m;
+      var gen = 58 * cumP(ci, t) * y0F * m;
+      var adm = 60 * cumP(fi, t) * m;
+      var grd = 12 * cumP(ci, t) * y0F * m;
+      var liters = 2070 * rampup[t] * 0.88 * 0.5 * 1402 / 1000;
+      var revAnti = liters * inp.priceAntifreezeY1 * cumP(pi, t);
+      var mkt = revAnti / 1000 * 0.03 * y0F * m;
+      var log = liters * 1000 * 15 * cumP(ci, t) * m / 1000 / 1000;
+      var total = maint + ecol + gen + adm + grd + mkt + log;
+      info.body += '<td>' + Math.round(total) + '</td>';
+    }
+    info.body += '</tr></tbody></table></div>';
+  }
+  
+  // ====== ФОТ ======
+  else if (sliderId === 'sl-fot') {
+    var m = inp.fotMult;
+    info.title = '👥 ФОТ производственный';
+    info.subtitle = 'Текущее значение Год 1: ' + Math.round(m * BASE_FOT_Y1) + ' млн ₸ (множитель ' + m.toFixed(2) + 'x от базы 109 млн)';
+    info.body = '<div class="modal-section"><h4>Состав штата (12 чел.) при текущем множителе</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Должность</th><th>База, млн/год</th><th>Скорр., млн/год</th></tr></thead><tbody>';
+    var staff = [
+      ['Начальник производства (1 чел.)', 13.5],
+      ['Инженер-технолог (1 чел.)', 10.5],
+      ['Операторы технол. линии (6 чел.)', 54],
+      ['Лаборанты (2 чел.)', 12],
+      ['Механик (1 чел.)', 9],
+      ['Электрик КИПиА (1 чел.)', 10],
+    ];
+    var baseTot = 0, scaledTot = 0;
+    staff.forEach(function(s) {
+      var scaled = s[1] * m;
+      baseTot += s[1]; scaledTot += scaled;
+      info.body += '<tr><td>' + s[0] + '</td><td>' + s[1].toFixed(1) + '</td><td>' + scaled.toFixed(1) + '</td></tr>';
+    });
+    info.body += '<tr class="total"><td>ИТОГО ФОТ Год 1 (с соц. отчислениями)</td><td>' + baseTot.toFixed(1) + '</td><td>' + scaledTot.toFixed(1) + '</td></tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p>Соц. отчисления РК 2026: соц. налог 9.5% + ОПВ 10% + ВОСМС 3% + соц. отчисл. 3.5% ≈ 40% сверху к чистым окладам.</p></div>';
+    info.body += '<div class="modal-section"><h4>ФОТ по годам (индексация быстрее общей инфляции)</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    info.body += '<tr><td>Индекс ФОТ</td>';
+    for (var t = 0; t <= 5; t++) info.body += '<td>×' + cumP(fi, t).toFixed(2) + '</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>ФОТ, млн ₸</td>';
+    for (var t = 0; t <= 5; t++) {
+      info.body += '<td>' + Math.round(109 * cumP(fi, t) * m) + '</td>';
+    }
+    info.body += '</tr></tbody></table>';
+    info.body += '<p>Индексация ФОТ: ×1.11 → ×1.09 → ×1.08 → ×1.07 → ×1.06 (быстрее cost-индексации в первые годы).</p></div>';
+  }
+  
+  // ====== СЫРЬЁ ======
+  else if (sliderId === 'sl-rawmat') {
+    var m = inp.rawMatMult;
+    var r = inp.rampupY1;
+    // Y1 при текущей загрузке
+    var reag_y1 = 180 * r * m;
+    var energy_y1 = 120 * (0.30 + 0.70 * r) * m;
+    var waste_y1 = 90 * r * m;
+    var liters_y1 = 2070 * r * 0.88 * 0.5 * 1402;
+    var pack_y1 = liters_y1 * (25+3+5) / 1000 / 1000 * m;
+    var total_y1 = reag_y1 + energy_y1 + waste_y1 + pack_y1;
+    // При 100% загрузке (для сравнения)
+    var reag_full = 180 * m;
+    var energy_full = 120 * m;
+    var waste_full = 90 * m;
+    var liters_full = 2070 * 0.88 * 0.5 * 1402;
+    var pack_full = liters_full * 33 / 1000 / 1000 * m;
+    var total_full = reag_full + energy_full + waste_full + pack_full;
+    
+    info.title = '🧪 Сырьё и материалы';
+    info.subtitle = 'Год 1 при загрузке ' + (r*100).toFixed(0) + '%: ' + Math.round(total_y1) + ' млн ₸ | при 100%: ' + Math.round(total_full) + ' млн ₸';
+    info.body = '<div class="modal-section"><h4>Состав при текущем множителе ' + m.toFixed(2) + 'x</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Статья</th><th>Год 1 (загрузка ' + (r*100).toFixed(0) + '%)</th><th>При 100% загрузке</th></tr></thead><tbody>';
+    info.body += '<tr><td>Реагенты и присадки (по ramp)</td><td>' + Math.round(reag_y1) + ' млн</td><td>' + Math.round(reag_full) + ' млн</td></tr>';
+    info.body += '<tr><td>Энергоресурсы (30% фикс + 70% × ramp)</td><td>' + Math.round(energy_y1) + ' млн</td><td>' + Math.round(energy_full) + ' млн</td></tr>';
+    info.body += '<tr><td>Утилизация шлама (по ramp)</td><td>' + Math.round(waste_y1) + ' млн</td><td>' + Math.round(waste_full) + ' млн</td></tr>';
+    info.body += '<tr><td>Упаковка + этикетки + вода (33 ₸/л)</td><td>' + Math.round(pack_y1) + ' млн</td><td>' + Math.round(pack_full) + ' млн</td></tr>';
+    info.body += '<tr class="total"><td>ИТОГО</td><td>' + Math.round(total_y1) + ' млн</td><td>' + Math.round(total_full) + ' млн</td></tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p style="font-size:11px;color:var(--text-dim);margin-top:6px;">Слайдер задаёт сумму при полной загрузке (Y5). В Год 1 затраты ниже из-за неполной загрузки.</p>';
+    info.body += '</div>';
+    info.body += '<div class="modal-section"><h4>Сырьё по годам (с учётом ramp-up и cost-индексации)</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    info.body += '<tr><td>Загрузка мощности</td>';
+    for (var t = 0; t <= 5; t++) info.body += '<td>' + (rampup[t]*100).toFixed(0) + '%</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>Сырьё, млн ₸</td>';
+    for (var t = 0; t <= 5; t++) {
+      var r = rampup[t];
+      var reag = 180 * cumP(ci, t) * r * m;
+      var liters = 2070 * r * 0.88 * 0.5 * 1402;
+      var pack = liters * (25+3+5) * cumP(ci, t) * m / 1000 / 1000;
+      var energyBase = 120 * cumP(ci, t) * m;
+      var energy = (t === 0) ? energyBase * r : energyBase * (0.30 + 0.70 * r);
+      var waste = (t === 0) ? 0 : 90 * cumP(ci, t) * r * m;
+      var total = reag + pack + energy + waste;
+      info.body += '<td>' + Math.round(total) + '</td>';
+    }
+    info.body += '</tr></tbody></table></div>';
+  }
+  
+  // ====== ЗАГРУЗКА ======
+  else if (sliderId === 'sl-rampup') {
+    info.title = '📈 Загрузка мощности';
+    info.subtitle = 'Текущее значение в 01 году: ' + (inp.rampupY1*100).toFixed(0) + '% (' + Math.round(2070 * inp.rampupY1) + ' т сырья)';
+    info.body = '<div class="modal-section"><h4>Полный ramp-up по годам</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th><th>Терм.</th></tr></thead><tbody>';
+    info.body += '<tr><td>Загрузка, %</td>';
+    for (var t = 0; t <= 6; t++) info.body += '<td>' + (rampup[t]*100).toFixed(0) + '%</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>Приёмка сырья, т</td>';
+    for (var t = 0; t <= 6; t++) info.body += '<td>' + Math.round(2070 * rampup[t]) + '</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>Регенерат (88% извлечение), т</td>';
+    for (var t = 0; t <= 6; t++) info.body += '<td>' + Math.round(2070 * rampup[t] * 0.88) + '</td>';
+    info.body += '</tr>';
+    info.body += '<tr><td>Антифриз, тыс л</td>';
+    for (var t = 0; t <= 6; t++) info.body += '<td>' + Math.round(2070 * rampup[t] * 0.88 * 0.5 * 1402 / 1000) + '</td>';
+    info.body += '</tr>';
+    info.body += '</tbody></table>';
+    info.body += '<p>Год 0 — пилотный режим. Год 1 — задаётся слайдером. Год 2-5 — линейная экстраполяция к 100%. Поток разделяется 50/50: регенерат на продажу и в антифриз.</p></div>';
+  }
+  
+  // ====== ДОЛГ ======
+  else if (sliderId === 'sl-debt') {
+    var d = inp.debtAmount;
+    info.title = '🏦 Кредит revolver';
+    info.subtitle = 'Текущее значение: ' + (d/1000).toFixed(0) + ' млн ₸ (выдаётся в Год 0)';
+    info.body = '<div class="modal-section"><h4>Параметры кредита</h4>';
+    info.body += '<table class="modal-table"><tbody>';
+    info.body += '<tr><td>Тело кредита</td><td>' + (d/1000).toFixed(0) + ' млн ₸</td></tr>';
+    info.body += '<tr><td>Ставка</td><td>19% годовых</td></tr>';
+    info.body += '<tr><td>Срок</td><td>3 года</td></tr>';
+    info.body += '<tr><td>Льготный период по телу</td><td>1 год</td></tr>';
+    info.body += '<tr><td>Погашение тела</td><td>равномерно Год 2-3</td></tr>';
+    info.body += '</tbody></table></div>';
+    
+    info.body += '<div class="modal-section"><h4>График обслуживания</h4>';
+    info.body += '<table class="modal-table"><thead><tr><th>Период</th><th>Год 0</th><th>Год 1</th><th>Год 2</th><th>Год 3</th><th>Год 4</th><th>Год 5</th></tr></thead><tbody>';
+    if (d > 0) {
+      var repayY = 2;
+      var annualP = d / repayY;
+      var bal = d, balances = [], interests = [], principals = [];
+      for (var t = 0; t < 7; t++) {
+        balances.push(bal);
+        var avgBal = bal, p = 0;
+        if (t > 1 && t <= 3) { p = annualP; avgBal = bal - annualP/2; }
+        interests.push(avgBal * 0.19);
+        principals.push(p);
+        bal = Math.max(0, bal - p);
+      }
+      info.body += '<tr><td>Остаток на нач. года</td>';
+      for (var t = 0; t <= 5; t++) info.body += '<td>' + Math.round(balances[t]/1000) + '</td>';
+      info.body += '</tr>';
+      info.body += '<tr><td>Погашение тела</td>';
+      for (var t = 0; t <= 5; t++) info.body += '<td>' + Math.round(principals[t]/1000) + '</td>';
+      info.body += '</tr>';
+      info.body += '<tr><td>Проценты</td>';
+      for (var t = 0; t <= 5; t++) info.body += '<td>' + Math.round(interests[t]/1000) + '</td>';
+      info.body += '</tr>';
+      info.body += '<tr class="total"><td>Σ Платёж (млн ₸)</td>';
+      for (var t = 0; t <= 5; t++) info.body += '<td>' + Math.round((principals[t]+interests[t])/1000) + '</td>';
+      info.body += '</tr>';
+    } else {
+      info.body += '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Кредит = 0, нет платежей</td></tr>';
+    }
+    info.body += '</tbody></table>';
+    info.body += '<p>Revolver используется для финансирования оборотного капитала, не для CapEx. На NPV не влияет (FCFF — unlevered), но влияет на Net Income, Cash min и Σ Interest.</p></div>';
+  }
+  
+  return info;
+}
+
+function openInfoModal(sliderId) {
+  var inp = getInputs();
+  var info = buildModal(sliderId, inp);
+  document.getElementById('modal-title').textContent = info.title;
+  document.getElementById('modal-subtitle').textContent = info.subtitle;
+  document.getElementById('modal-body').innerHTML = info.body;
+  document.getElementById('info-modal').classList.add('show');
+}
+
+function closeInfoModal() {
+  document.getElementById('info-modal').classList.remove('show');
+}
+
+// Глобальный доступ для onclick
+window.openInfoModal = openInfoModal;
+window.closeInfoModal = closeInfoModal;
+
+// ====== INIT ======
+function init() {
+  try {
+    setStatus('🔧 Инициализация...', false);
+    
+    var sliderIds = ['sl-capex','sl-wacc','sl-price-service','sl-price-anti','sl-opex','sl-fot','sl-rawmat','sl-rampup','sl-debt'];
+    sliderIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', update);
+        el.addEventListener('change', update);
+      }
+    });
+    
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var preset = btn.getAttribute('data-preset');
+        loadPreset(preset);
+      });
+    });
+    
+    // Scenario cards (delegated via document listener after they're created)
+    document.getElementById('scenarios-grid').addEventListener('click', function(e) {
+      var card = e.target.closest('.scenario-card');
+      if (card) {
+        var preset = card.getAttribute('data-preset');
+        if (preset) loadPreset(preset);
+      }
+    });
+    
+    // Action buttons
+    document.getElementById('btn-copy').addEventListener('click', copyConfig);
+    document.getElementById('btn-tornado').addEventListener('click', toggleTornado);
+    
+    // Info modal listeners
+    document.querySelectorAll('.info-btn').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var sid = el.getAttribute('data-info');
+        if (sid) openInfoModal(sid);
+      });
+    });
+    
+    // ESC закрывает modal
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeInfoModal();
+    });
+    
+    updateScenarios();
+    update();
+    
+    setStatus('✓ Калькулятор готов — двигайте бегунки', false);
+  } catch(e) {
+    setStatus('✗ Init ошибка: ' + e.message, true);
+    console.error('init error:', e);
+  }
+}
+
+// Multi-stage init
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>
